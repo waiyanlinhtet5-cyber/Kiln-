@@ -1,40 +1,42 @@
 import streamlit as st
 import pandas as pd
 
-# Page Configuration
-st.set_page_config(page_title="Kiln Equipment Search", layout="centered")
+# Page Setting (ပုံစံလှပအောင်)
+st.set_page_config(page_title="Kiln Equipment Search", layout="wide")
 
-st.title("🔍 Kiln Equipment Inventory")
+# Google Sheet Link ကို CSV အဖြစ် ပြောင်းလဲခြင်း
+# အစ်ကို့ Sheet URL ကို ဒီမှာ အစားထိုးပါ
+sheet_url = "https://docs.google.com/spreadsheets/d/1XhblvRtP-QTpzuL6FpOV2TklAAh5gGLJ65psSJF0ozA/edit?gid=0#gid=0"
+csv_url = sheet_url.replace('/edit', '/export?format=csv')
 
-# Data loading
+# Title
+st.title("Kiln Equipment (Live Sync)")
+
 try:
-    # GitHub ထဲမှာ data.csv ရှိနေဖို့ လိုပါတယ်
-    df = pd.read_csv("data.csv")
+    # ဒေတာဖတ်ခြင်း
+    df = pd.read_csv(csv_url)
     
-    search_query = st.text_input("စက်အမည် ရိုက်ပါ (ဥပမာ- Motor)", "").strip()
+    # Search Box (ပုံထဲကလို အပေါ်မှာ ထားပါမယ်)
+    search_query = st.text_input("Search Equipment Name", placeholder="ဥပမာ- FN03").strip()
 
-    if st.button("Search"):
-        if search_query:
-            # စက်အမည် column ထဲမှာ ရှာဖွေခြင်း
-            # Note: Column name က 'Machine' ဖြစ်ရပါမယ်။ (အစ်ကို့ csv ထဲကအတိုင်း ပြင်နိုင်ပါတယ်)
-            results = df[df.iloc[:, 0].str.contains(search_query, case=False, na=False)]
+    if search_query:
+        # ပထမဆုံး Column မှာ ရှာဖွေခြင်း
+        results = df[df.iloc[:, 0].astype(str).str.contains(search_query, case=False, na=False)]
 
-            if not results.empty:
-                for index, row in results.iterrows():
-                    with st.container():
-                        st.subheader(f"⚙️ {row.iloc[0]}")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write(f"**🛢️ Oil:** {row.get('Oil', 'N/A')}")
-                            st.write(f"**🔧 Wrench:** {row.get('Wrench', 'N/A')}")
-                        with col2:
-                            st.write(f"**🛠️ Spanner:** {row.get('Spanner', 'N/A')}")
-                            st.write(f"**⛽ Grease:** {row.get('Grease', 'N/A')}")
-                        st.divider()
-            else:
-                st.warning("❌ ရှာမတွေ့ပါ။ စာလုံးပေါင်း ပြန်စစ်ကြည့်ပါ။")
+        if not results.empty:
+            for index, row in results.iterrows():
+                # ပုံထဲကလို Card ပုံစံ Expander သုံးပါမယ်
+                with st.expander(f"⚙️ {row.iloc[0]}", expanded=True):
+                    # Column တွေကို ပုံထဲကလို တစ်ကြောင်းချင်း စီပြပါမယ်
+                    for col_name, value in row.items():
+                        if col_name != df.columns[0]: # အမည်ကို ခေါင်းစဉ်မှာ ပြပြီးသားမို့ ချန်ခဲ့ပါမယ်
+                            st.write(f"**{col_name}**")
+                            st.write(f"{value}")
+                            st.write("---") # မျဉ်းတားလေးခြားပါမယ်
         else:
-            st.info("ရှာဖွေလိုသည့် အမည်ကို ရိုက်ထည့်ပေးပါ။")
+            st.error("❌ ရှာမတွေ့ပါ။ စာလုံးပေါင်း ပြန်စစ်ကြည့်ပါ။")
+    else:
+        st.info("ရှာဖွေလိုသည့် စက်အမည်ကို ရိုက်ထည့်ပါ။")
 
 except Exception as e:
-    st.error(f"Error loading data: {e}")
+    st.error(f"ချိတ်ဆက်မှု အမှားရှိနေပါသည်- {e}")
