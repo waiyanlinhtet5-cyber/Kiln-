@@ -1,65 +1,40 @@
-import flet as ft
-import csv
-import os
+import streamlit as st
+import pandas as pd
 
-def main(page: ft.Page):
-    page.title = "Kiln Machine Search"
-    page.theme_mode = ft.ThemeMode.LIGHT
-    page.window_width = 400
-    page.scroll = "auto"
+# Page Configuration
+st.set_page_config(page_title="Kiln Equipment Search", layout="centered")
 
-    def search_machine(e):
-        search_val = search_input.value.strip().lower()
-        if not search_val:
-            res_text.value = "FN 03"
-            page.update()
-            return
+st.title("🔍 Kiln Equipment Inventory")
 
-        found_data = None
-        try:
-            # data.csv ဖိုင်
-            with open('data.csv', mode='r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                for row in reader:
-                    # 'Name' column မှာ ရှာခြင်း
-                    if row.get('Name', '').strip().lower() == search_val:
-                        found_data = row
-                        break
-            
-            if found_data:
-                # အချက်အလက်များကို စာရင်းလိုက် ပြပေးခြင်း
-                res_text.value = (
-                    f"✅ စက်အမည်: {found_data.get('Name')}\n"
-                    f"⚙️ Bearing: {found_data.get('Bearing', '-')}\n"
-                    f"🛢️ Oil: {found_data.get('Oil', '-')}\n"
-                    f"🔧 Wrench: {found_data.get('Wrench', '-')}\n"
-                    f"🛠️ Spanner: {found_data.get('Spanner', '-')}\n"
-                    f"🏗️ Grease: {found_data.get('Grease', '-')}"
-                )
-                res_text.color = ft.colors.BLUE_800
+# Data loading
+try:
+    # GitHub ထဲမှာ data.csv ရှိနေဖို့ လိုပါတယ်
+    df = pd.read_csv("data.csv")
+    
+    search_query = st.text_input("စက်အမည် ရိုက်ပါ (ဥပမာ- Motor)", "").strip()
+
+    if st.button("Search"):
+        if search_query:
+            # စက်အမည် column ထဲမှာ ရှာဖွေခြင်း
+            # Note: Column name က 'Machine' ဖြစ်ရပါမယ်။ (အစ်ကို့ csv ထဲကအတိုင်း ပြင်နိုင်ပါတယ်)
+            results = df[df.iloc[:, 0].str.contains(search_query, case=False, na=False)]
+
+            if not results.empty:
+                for index, row in results.iterrows():
+                    with st.container():
+                        st.subheader(f"⚙️ {row.iloc[0]}")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**🛢️ Oil:** {row.get('Oil', 'N/A')}")
+                            st.write(f"**🔧 Wrench:** {row.get('Wrench', 'N/A')}")
+                        with col2:
+                            st.write(f"**🛠️ Spanner:** {row.get('Spanner', 'N/A')}")
+                            st.write(f"**⛽ Grease:** {row.get('Grease', 'N/A')}")
+                        st.divider()
             else:
-                res_text.value = "❌ ရှာမတွေ့ပါ။ စာလုံးပေါင်း ပြန်စစ်ပါ။"
-                res_text.color = ft.colors.RED_600
+                st.warning("❌ ရှာမတွေ့ပါ။ စာလုံးပေါင်း ပြန်စစ်ကြည့်ပါ။")
+        else:
+            st.info("ရှာဖွေလိုသည့် အမည်ကို ရိုက်ထည့်ပေးပါ။")
 
-        except Exception as err:
-            res_text.value = f"Error: {err}"
-        
-        page.update()
-
-    # UI Design
-    search_input = ft.TextField(label="စက်အမည် (ဥပမာ- FN03)", width=350)
-    res_text = ft.Text(size=16, weight="bold")
-
-    page.add(
-        ft.Container(height=20),
-        ft.Text("Kiln Machine Inventory", size=24, weight="bold", color="green"),
-        search_input,
-        ft.ElevatedButton("ဒေတာရှာပါ", icon=ft.icons.SEARCH, on_click=search_machine),
-        ft.Divider(),
-        ft.Container(content=res_text, padding=20, bgcolor=ft.colors.GREY_100, border_radius=10, width=350)
-    )
-
-if __name__ == "__main__":
-    # Koyeb/Render အတွက် Port သတ်မှတ်ချက်
-    port = int(os.getenv("PORT", 8080))
-    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=port)
+except Exception as e:
+    st.error(f"Error loading data: {e}")
