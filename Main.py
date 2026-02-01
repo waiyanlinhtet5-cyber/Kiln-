@@ -1,65 +1,42 @@
-import flet as ft
-import csv
-import os
+import streamlit as st
+import pandas as pd
 
-def main(page: ft.Page):
-    page.title = "Kiln Machine Search"
-    page.theme_mode = ft.ThemeMode.LIGHT
-    page.window_width = 400
-    page.scroll = "auto"
+# Page Setting (ပုံစံလှပအောင်)
+st.set_page_config(page_title="Kiln Equipment Search", layout="wide")
 
-    def search_machine(e):
-        search_val = search_input.value.strip().lower()
-        if not search_val:
-            res_text.value = "FN 03"
-            page.update()
-            return
+# Google Sheet Link ကို CSV အဖြစ် ပြောင်းလဲခြင်း
+# အစ်ကို့ Sheet URL ကို ဒီမှာ အစားထိုးပါ
+sheet_url = "https://docs.google.com/spreadsheets/d/1XhblvRtP-QTpzuL6FpOV2TklAAh5gGLJ65psSJF0ozA/edit?gid=0#gid=0"
+csv_url = sheet_url.replace('/edit', '/export?format=csv')
 
-        found_data = None
-        try:
-            # data.csv ဖိုင်
-            with open('data.csv', mode='r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                for row in reader:
-                    # 'Name' column မှာ ရှာခြင်း
-                    if row.get('Name', '').strip().lower() == search_val:
-                        found_data = row
-                        break
-            
-            if found_data:
-                # အချက်အလက်များကို စာရင်းလိုက် ပြပေးခြင်း
-                res_text.value = (
-                    f"✅ စက်အမည်: {found_data.get('Name')}\n"
-                    f"⚙️ Bearing: {found_data.get('Bearing', '-')}\n"
-                    f"🛢️ Oil: {found_data.get('Oil', '-')}\n"
-                    f"🔧 Wrench: {found_data.get('Wrench', '-')}\n"
-                    f"🛠️ Spanner: {found_data.get('Spanner', '-')}\n"
-                    f"🏗️ Grease: {found_data.get('Grease', '-')}"
-                )
-                res_text.color = ft.colors.BLUE_800
-            else:
-                res_text.value = "❌ ရှာမတွေ့ပါ။ စာလုံးပေါင်း ပြန်စစ်ပါ။"
-                res_text.color = ft.colors.RED_600
+# Title
+st.title("Kiln Equipment (Live Sync)")
 
-        except Exception as err:
-            res_text.value = f"Error: {err}"
-        
-        page.update()
+try:
+    # ဒေတာဖတ်ခြင်း
+    df = pd.read_csv(csv_url)
+    
+    # Search Box (ပုံထဲကလို အပေါ်မှာ ထားပါမယ်)
+    search_query = st.text_input("Search Equipment Name", placeholder="ဥပမာ- FN03").strip()
 
-    # UI Design
-    search_input = ft.TextField(label="စက်အမည် (ဥပမာ- FN03)", width=350)
-    res_text = ft.Text(size=16, weight="bold")
+    if search_query:
+        # ပထမဆုံး Column မှာ ရှာဖွေခြင်း
+        results = df[df.iloc[:, 0].astype(str).str.contains(search_query, case=False, na=False)]
 
-    page.add(
-        ft.Container(height=20),
-        ft.Text("Kiln Machine Inventory", size=24, weight="bold", color="green"),
-        search_input,
-        ft.ElevatedButton("ဒေတာရှာပါ", icon=ft.icons.SEARCH, on_click=search_machine),
-        ft.Divider(),
-        ft.Container(content=res_text, padding=20, bgcolor=ft.colors.GREY_100, border_radius=10, width=350)
-    )
+        if not results.empty:
+            for index, row in results.iterrows():
+                # ပုံထဲကလို Card ပုံစံ Expander သုံးပါမယ်
+                with st.expander(f"⚙️ {row.iloc[0]}", expanded=True):
+                    # Column တွေကို ပုံထဲကလို တစ်ကြောင်းချင်း စီပြပါမယ်
+                    for col_name, value in row.items():
+                        if col_name != df.columns[0]: # အမည်ကို ခေါင်းစဉ်မှာ ပြပြီးသားမို့ ချန်ခဲ့ပါမယ်
+                            st.write(f"**{col_name}**")
+                            st.write(f"{value}")
+                            st.write("---") # မျဉ်းတားလေးခြားပါမယ်
+        else:
+            st.error("❌ ရှာမတွေ့ပါ။ စာလုံးပေါင်း ပြန်စစ်ကြည့်ပါ။")
+    else:
+        st.info("ရှာဖွေလိုသည့် စက်အမည်ကို ရိုက်ထည့်ပါ။")
 
-if __name__ == "__main__":
-    # Koyeb/Render အတွက် Port သတ်မှတ်ချက်
-    port = int(os.getenv("PORT", 8080))
-    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=port)
+except Exception as e:
+    st.error(f"ချိတ်ဆက်မှု အမှားရှိနေပါသည်- {e}")
